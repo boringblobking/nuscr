@@ -59,6 +59,7 @@
 %token DO_KW
 %token CALLS_KW
 %token NEW_KW
+%token CRASH_KW
 
 (* pragmas *)
 %token PRAGMA_START
