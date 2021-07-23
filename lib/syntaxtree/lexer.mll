@@ -120,6 +120,7 @@ and token = parse
 | "calls" { CALLS_KW }
 | "new" { NEW_KW }
 | "len" { LEN_KW }
+| "safe" { SAFE_KW }
 
 
 (* other *)
