@@ -8,7 +8,7 @@
 (library
  (name nuscrlib)
  (public_name nuscr.lib)
- (libraries base stdio ocamlgraph ppxlib unix process)
+ (libraries base stdio ocamlgraph ppxlib unix process ocaml-protoc-plugin)
  (library_flags (-linkall))
  (preprocess
   (pps
