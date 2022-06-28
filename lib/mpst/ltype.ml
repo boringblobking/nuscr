@@ -114,7 +114,8 @@ let equal_coinductive lty1 lty2 =
           [%derive.eq: RoleName.t] r1 r2 && List.equal aux ltys1 ltys2
       | TVarL (tv1, es1, lty1'), TVarL (tv2, es2, lty2') ->
           [%derive.eq: TypeVariableName.t * Expr.t list] (tv1, es1) (tv2, es2)
-          && (phys_equal lty1' lty2' || aux (Lazy.force lty1') (Lazy.force lty2'))
+          && ( phys_equal lty1' lty2'
+             || aux (Lazy.force lty1') (Lazy.force lty2') )
       | TVarL (_, [], lty'), lty | lty, TVarL (_, [], lty') ->
           aux (Lazy.force lty') lty
       | MuL (tv1, rvs1, lty1'), MuL (tv2, rvs2, lty2') ->
