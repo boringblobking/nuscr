@@ -36,7 +36,7 @@ Example2 should also be projectable.
          and
          
          continue Loop;
-  [1]
+  [124]
   $ nuscr --project B@Example2 Loop2.nuscr
   nuscr: User error: Unable to merge: 
          Baz() from A;
@@ -45,7 +45,7 @@ Example2 should also be projectable.
          and
          
          continue Loop;
-  [1]
+  [124]
   $ nuscr --project C@Example2 Loop2.nuscr
   nuscr: User error: Unable to merge: 
          Baz() from A;
@@ -54,7 +54,7 @@ Example2 should also be projectable.
          and
          
          continue Loop;
-  [1]
+  [124]
 
 Example3 should also be projectable.
 
