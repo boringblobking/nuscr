@@ -137,6 +137,18 @@ module Toplevel = struct
     in
     Extraction.expand_global_protocol ast gp |> Gtype.of_protocol
 
+  let get_global_type1 ast ~protocol : Gtype.t =
+    let gp =
+      match
+        List.find
+          ~f:(fun gt -> ProtocolName.equal gt.Loc.value.name protocol)
+          ast.protocols
+      with
+      | Some gp -> gp
+      | None -> uerr (ProtocolNotFound protocol)
+    in
+    Extraction.expand_global_protocol ast gp |> Gtype.of_crash_safe_protocol
+
   let get_global_type_literature_syntax ast ~protocol =
     let gtype = get_global_type ast ~protocol in
     LiteratureSyntax.from_gtype gtype

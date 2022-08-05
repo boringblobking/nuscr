@@ -1,0 +1,99 @@
+(*# ErrorHandlingCrashBranch #*)
+
+global protocol SimpleConsensus(role P, role A1, role A2, role L) {
+  choice at P {
+    Propose from P to A1;
+    choice at P {
+      Propose from P to A2;
+      choice at A1 {
+        Accept from A1 to P;
+        choice at A2 {
+          Accept from A2 to P;
+          choice at P {
+            Accepted from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          Reject from A2 to P;
+          choice at P {
+            Accepted from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          crash from A2 to P;
+          choice at P {
+            Accepted from P to L;
+          } or {
+            crash from P to L;
+          }
+        }
+      } or {
+        Reject from A1 to P;
+        choice at A2 {
+          Accept from A2 to P;
+          choice at P {
+            Accepted from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          Reject from A2 to P;
+          choice at P {
+            Rejected from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          crash from A2 to P;
+          choice at P {
+            Rejected from P to L;
+          } or {
+            crash from P to L;
+          }
+        }
+      } or {
+        crash from A1 to P;
+        choice at A2 {
+          Accept from A2 to P;
+          choice at P {
+            Accepted from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          Reject from A2 to P;
+          choice at P {
+            Rejected from P to L;
+          } or {
+            crash from P to L;
+          }
+        } or {
+          crash from A2 to P;
+          choice at P {
+            Rejected from P to L;
+          } or {
+            crash from P to L;
+          }
+        }
+      }
+    } or {
+      crash from P to A2;
+      choice at A1 {
+        Accept from A1 to P;
+        crash from P to L;
+      } or {
+        Reject from A1 to P;
+        crash from P to L;
+      } or {
+        crash from A1 to P;
+        crash from P to L;
+      }
+    } 
+  } or {
+    crash from P to A1;
+    crash from P to A2;
+    crash from P to L;
+  }
+}

@@ -1,0 +1,141 @@
+let of_protocol1 (global_protocol : Syntax.global_protocol) =
+  let open Syntax in
+  let {Loc.value= {roles; interactions; _}; _} = global_protocol in
+  let assert_empty l =
+    if not @@ List.is_empty l then
+      unimpl ~here:[%here] "Non tail-recursive protocol"
+  in
+  let check_role r =
+    if not @@ List.mem roles r ~equal:RoleName.equal then
+      uerr @@ UnboundRole r
+  in
+  let rec conv_interactions env (interactions : global_interaction list) =
+    match interactions with
+    | [] -> (EndG, env.free_names)
+    | {value; _} :: rest -> (
+      match value with
+      | MessageTransfer {message; from_role; to_roles; _} ->
+          check_role from_role ;
+          let init, free_names =
+            conv_interactions 
+              {env with unguarded_tvs= Set.empty (module TypeVariableName)}
+              rest
+          in
+          let f to_role acc =
+            check_role to_role ;
+            if RoleName.equal from_role to_role then
+              uerr
+                (ReflexiveMessage
+                   ( from_role
+                   , RoleName.where from_role
+                   , RoleName.where to_role ) ) ;
+            MessageG (of_syntax_message message, from_role, to_role, acc)
+          in
+          (List.fold_right ~f ~init to_roles, free_names)
+      | Recursion (rname, rec_vars, interactions) ->
+          if Set.mem env.free_names rname then
+            unimpl ~here:[%here] "Alpha convert recursion names"
+          else assert_empty rest ;
+          let rec lazy_cont =
+            lazy
+              (conv_interactions
+                 { env with
+                   lazy_conts=
+                     Map.add_exn ~key:rname ~data:lazy_cont env.lazy_conts
+                 ; unguarded_tvs= Set.add env.unguarded_tvs rname }
+                 interactions )
+          in
+          let rec_vars =
+            if Pragma.refinement_type_enabled () then
+              List.map ~f:rec_var_of_syntax_rec_var rec_vars
+            else []
+          in
+          List.iter
+            ~f:(fun {rv_roles; _} -> List.iter ~f:check_role rv_roles)
+            rec_vars ;
+          let cont, free_names_ = Lazy.force lazy_cont in
+          (* Remove degenerate recursion here *)
+          if Set.mem free_names_ rname then
+            (MuG (rname, rec_vars, cont), Set.remove free_names_ rname)
+          else (cont, free_names_)
+      | Continue (name, rec_exprs) ->
+          let rec_exprs =
+            if Pragma.refinement_type_enabled () then rec_exprs else []
+          in
+          if Set.mem env.unguarded_tvs name then
+            uerr (UnguardedTypeVariable name) ;
+          let cont =
+            lazy (Lazy.force (Map.find_exn env.lazy_conts name) |> fst)
+          in
+          assert_empty rest ;
+          (TVarG (name, rec_exprs, cont), Set.add env.free_names name)
+      | Choice (role, interactions_list) ->
+          assert_empty rest ;
+          check_role role ;
+          if List.length interactions_list = 1 then
+            (* Remove degenerate choice *)
+            let interaction = List.hd_exn interactions_list in
+            conv_interactions env interaction
+          else
+            let conts =
+              List.map ~f:(conv_interactions env) ({loc = Loc.create (Lexing.lexeme.start (Lexing.from_channel (In_channel.create "dummy.txt")), Lexing.lexeme.start (Lexing.from_channel (In_channel.create "dummy.txt"))) ;
+                                                   value = [MessageTransfer { message = MessageName (LabelName.of_string "crash");
+                                                                              from_role = role ; 
+                                                                              to_roles = [RoleName.of_string "crash manager"];
+                                                                              ann = Some "CRASH" }]} 
+                                                  :: interactions_list)
+            in
+            ( ChoiceG (role, List.map ~f:fst conts)
+            , Set.union_list
+                (module TypeVariableName)
+                (List.map ~f:snd conts) )
+      | Do (protocol, roles, _) ->
+          (* This case is only reachable with NestedProtocols pragma turned on
+           * *)
+          assert (Pragma.nested_protocol_enabled ()) ;
+          let fst_role = List.hd_exn roles in
+          let cont, free_names =
+            conv_interactions
+              {env with unguarded_tvs= Set.empty (module TypeVariableName)}
+              rest
+          in
+          (CallG (fst_role, protocol, roles, cont), free_names)
+      | Calls (caller, proto, roles, _) ->
+          let cont, free_names =
+            conv_interactions
+              {env with unguarded_tvs= Set.empty (module TypeVariableName)}
+              rest
+          in
+          (CallG (caller, proto, roles, cont), free_names) )
+  in
+  let gtype, free_names = conv_interactions init_conv_env interactions in
+  match Set.choose free_names with
+  | Some free_name -> uerr (UnboundRecursionName free_name)
+  | None -> evaluate_lazy_gtype gtype
+
+let add_crash_branches (located_global_protocol : Syntax.raw_global_protocol located) =
+  let open Syntax in 
+  let {loc = dm; value = gp} = located_global_protocol in
+    match gp with 
+      { name = p_name;
+        options = p_options;
+        parameters = p_parameters;
+        rec_parameters = p_rec_parameters;
+        roles = p_roles;
+        split_roles = p_split_roles;
+        nested_protocols = p_nested_protocols;
+        interactions = p_interactions;
+        ann = p_ann} ->
+          match interactions with
+            | [] -> (EndG, env.free_names)
+            | 
+
+          of_protocol1 {loc = dm; value = { name = p_name;
+                                                          options = p_options;
+                                                          parameters = p_parameters;
+                                                          rec_parameters = p_rec_parameters;
+                                                          roles = p_roles;
+                                                          split_roles = p_split_roles;
+                                                          nested_protocols = p_nested_protocols;
+                                                          interactions = p_interactions;
+                                                          ann = p_ann}}

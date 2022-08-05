@@ -115,6 +115,7 @@ type t =
   | ChoiceG of RoleName.t * t list
   | EndG
   | CallG of RoleName.t * ProtocolName.t * RoleName.t list * t
+  | Empty
 [@@deriving sexp_of]
 
 let rec evaluate_lazy_gtype = function
@@ -129,6 +130,7 @@ let rec evaluate_lazy_gtype = function
   | ChoiceG (r, gs) -> ChoiceG (r, List.map ~f:evaluate_lazy_gtype gs)
   | EndG -> EndG
   | CallG (r, p, rs, g) -> CallG (r, p, rs, evaluate_lazy_gtype g)
+  | Empty -> EndG
 
 type nested_global_info =
   { static_roles: RoleName.t list
@@ -169,7 +171,7 @@ let show =
         in
         sprintf "%scontinue %s%s;\n" current_indent (TypeVariableName.user n)
           rec_exprs_s
-    | EndG -> sprintf "%send\n" current_indent
+    | EndG -> "" (* was previously: sprintf "%send\n" current_indent *)
     | ChoiceG (r, gs) ->
         let pre =
           sprintf "%schoice at %s {\n" current_indent (RoleName.user r)
@@ -187,6 +189,7 @@ let show =
           (ProtocolName.user proto_name)
           (String.concat ~sep:", " (List.map ~f:RoleName.user roles))
           (show_global_type_internal indent g)
+    | Empty -> ""
   in
   show_global_type_internal 0
 
@@ -319,7 +322,7 @@ let of_protocol (global_protocol : Syntax.global_protocol) =
             let interaction = List.hd_exn interactions_list in
             conv_interactions env interaction
           else
-            let conts =
+            let conts = 
               List.map ~f:(conv_interactions env) interactions_list
             in
             ( ChoiceG (role, List.map ~f:fst conts)
@@ -349,6 +352,98 @@ let of_protocol (global_protocol : Syntax.global_protocol) =
   match Set.choose free_names with
   | Some free_name -> uerr (UnboundRecursionName free_name)
   | None -> evaluate_lazy_gtype gtype
+
+(* this function just takes all messages and turns them into choices so that we can add crash handling branches to them easily *)
+let rec desugar gp =
+  match gp with 
+  | MessageG (msg, from_role, to_role, rest) -> ChoiceG (from_role, MessageG (msg, from_role, to_role, desugar rest) :: [])
+  | MuG (var_name, var_list, rest) -> MuG (var_name, var_list, desugar rest)
+  | ChoiceG (role, choices) -> ChoiceG (role, List.map choices ~f:desugar)
+  | CallG (role_name, protocol_name, role_names, rest) -> CallG (role_name, protocol_name, role_names, desugar rest)
+  | e -> e
+
+(* desugar ends up creating some redundant choices e.g. choice at A { choice at A { ... } } so this function just removes those *)
+let rec remove_redundant_choices gp =
+  match gp with 
+  | MessageG (msg, from_role, to_role, rest) -> MessageG (msg, from_role, to_role, remove_redundant_choices rest)
+  | MuG (var_name, var_list, rest) -> MuG (var_name, var_list, remove_redundant_choices rest)
+  | ChoiceG (_, []) -> EndG
+  | ChoiceG (role, choices) -> ChoiceG (role, remove_choice role choices)
+  | CallG (role_name, protocol_name, role_names, rest) -> CallG (role_name, protocol_name, role_names, remove_redundant_choices rest)
+  | e -> e
+  and remove_choice role choices =
+    match choices with
+    | [] -> []
+    | (c1 :: cs) -> 
+      match c1 with
+      | ChoiceG(role, [protocol]) -> remove_redundant_choices protocol :: remove_choice role cs
+      | _ -> remove_redundant_choices c1 :: remove_choice role cs
+
+(* this function adds a crash branch to every choice *)
+let rec add_crash_branches gp =
+    match gp with
+    | MessageG (msg, from_role, to_role, rest) -> MessageG (msg, from_role, to_role, add_crash_branches rest)
+    | MuG (var_name, var_list, rest) -> MuG (var_name, var_list, add_crash_branches rest)
+    | ChoiceG (role, first_choice :: rest) -> 
+      (match first_choice with
+      | MessageG (_, from_role, to_role, _) -> ChoiceG (role, (List.map (first_choice :: rest) ~f:add_crash_branches) @ [MessageG ({label = LabelName.of_string "CRASH"; payload = []}, from_role, to_role, Empty)])
+      | e -> e)
+    | CallG (role_name, protocol_name, role_names, rest) -> CallG (role_name, protocol_name, role_names, add_crash_branches rest)
+    | e -> e
+
+(* let rec last = function
+| [] -> None
+| [x] -> Some x
+| _ :: t -> last t
+
+let compatible crash_protocol other_protocol = 
+  match other_protocol with
+    | MessageG
+    | MuG
+    | TVarG
+    | ChoiceG
+    | EndG
+    | CallG
+    | Empty
+
+(* a b c *)
+(* hi a to b then  *)
+(* bye a to b then  *)
+(* crash a to b then nothing *)
+(* q for fangyi: will i need to carry around all the recursion protocols to refer to them *)
+(* what to do next: use a  *)
+let rec can_merge (ChoiceG (_, cs)) = 
+  let crash_branch'' = last cs in
+    match crash_branch'' with (* this match is simply to remove the "Some" constructor from the crash_branch *)
+      | Some crash_branch' -> can_merge_branches crash_branch' cs
+      | None -> false
+      and can_merge_branches crash_branch cs =
+        match cs with
+        | [] -> true
+        | (choice :: choices) -> (compatible crash_branch choice) && can_merge_branches crash_branch choices
+
+
+let fail_gracefully gp = gp
+let rec fix_any_merge_failures gp = 
+  match gp with
+    | MessageG (msg, from_role, to_role, rest) -> MessageG (msg, from_role, to_role, fix_any_merge_failures rest)
+    | MuG (var_name, var_list, rest) -> MuG (var_name, var_list, fix_any_merge_failures rest)
+    | ChoiceG (r, cs) -> (let cs' = (List.map cs ~f:fix_any_merge_failures) in
+                            if can_merge (ChoiceG (r, cs')) then 
+                              (ChoiceG (r, cs')) 
+                            else 
+                              fail_gracefully (ChoiceG (r, cs')))
+    | CallG (role_name, protocol_name, role_names, rest) -> CallG (role_name, protocol_name, role_names, fix_any_merge_failures rest)
+    | e -> e *)
+  (* first im gonna try just checking if theres a merge failure, 
+     then if so just copy paste the first branch of the choice as the  continuation in the crash branch,
+     however to do that i need to be able to detect when there is a merge failure,
+     and that seems like its gonna be a interesting problem sth to do w comparing global protocols but before that,
+     i wanna go see how all the other protocols especially some of the big ones didn't have any merge conflicts  *)
+
+let of_crash_safe_protocol (located_global_protocol : Syntax.raw_global_protocol located) =
+  let gp = of_protocol located_global_protocol in
+    add_crash_branches (remove_redundant_choices (desugar gp))
 
 let rec flatten = function
   | ChoiceG (role, choices) ->
@@ -390,6 +485,7 @@ let rec substitute g tvar g_sub =
       ChoiceG (r, List.map ~f:(fun g__ -> substitute g__ tvar g_sub) g_)
   | CallG (caller, protocol, roles, g_) ->
       CallG (caller, protocol, roles, substitute g_ tvar g_sub)
+  | Empty -> Empty
 
 let rec unfold = function
   | MuG (tvar, _, g_) as g -> substitute g_ tvar g
@@ -404,6 +500,7 @@ let rec normalise = function
   | MuG (tvar, rec_vars, g_) -> unfold (MuG (tvar, rec_vars, normalise g_))
   | CallG (caller, protocol, roles, g_) ->
       CallG (caller, protocol, roles, normalise g_)
+  | Empty -> Empty
 
 let normalise_nested_t (nested_t : nested_t) =
   let normalise_protocol ~key ~data acc =
@@ -483,6 +580,7 @@ let validate_refinements_exn t =
       | TVarG (_, _, g) -> gather_first_message (Lazy.force g)
       | EndG -> []
       | CallG _ -> (* Not supported *) []
+      | Empty -> []
     in
     let first_messages = List.concat_map ~f:gather_first_message gs in
     let encoded =
@@ -577,6 +675,7 @@ let validate_refinements_exn t =
               "Error message for mismatched number of recursion variable \
                declaration and expressions" )
     | CallG _ -> assert false
+    | Empty -> ()
   in
   aux env t
 
@@ -623,7 +722,7 @@ let add_missing_payload_field_names nested_t =
         in
         MessageG ({m with payload}, sender, recv, g)
     | MuG (n, rec_vars, g) -> MuG (n, rec_vars, add_missing_payload_names g)
-    | (TVarG _ | EndG) as p -> p
+    | (TVarG _ | EndG | Empty) as p -> p
     | ChoiceG (r, gs) -> ChoiceG (r, List.map gs ~f:add_missing_payload_names)
     | CallG (caller, proto_name, roles, g) ->
         let g = add_missing_payload_names g in

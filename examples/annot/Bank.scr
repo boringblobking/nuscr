@@ -1,0 +1,71 @@
+module Bank;
+
+global protocol Bank(role Client, role Svr, role SvrVer, role SvrAct) {
+
+    Connect() from Client to Svr;
+    do login(Client, Svr, SvrVer, SvrAct);
+}
+
+aux global protocol login(role Client, role Svr, role SvrVer, role SvrAct) {
+   Login(username: string, pw: string) from Client to Svr;
+   Login(username: string, pw: string) from Svr to SvrVer;
+   choice at SvrVer{
+     Success(message:String) from SvrVer to Svr;
+     Success(message:String) from Svr to Client;
+     Continue() from Svr to SvrAct;
+     do action(Client, Svr, SvrVer, SvrAct);
+} or {
+     Fail(errorCode: number, errorMessage: string) from SvrVer to Svr;
+     choice at Svr{
+     Cancel() from Svr to Client;
+     Cancel() from Svr to SvrVer;
+     Cancel() from Svr to SvrAct;
+  } or {
+     Retry(message:String) from Svr to Client;
+     Retry(message:String) from Svr to SvrVer;
+     Retry(message:String) from Svr to SvrAct;
+     do login(Client, Svr, SvrVer, SvrAct);
+  }
+
+}
+}
+
+aux global protocol action(role Client, role Svr, role SvrVer, role SvrAct) {
+   choice at Client{
+       Withdraw1(amount:number) from Client to Svr;
+       Withdraw2(username:string, amount:number) from Svr to SvrAct;
+       Continue() from Svr to SvrVer;
+       do response(Client, Svr, SvrVer, SvrAct);
+   }
+    or{
+      Deposit1(username:number) from Client to Svr;
+      Deposit2(username:string, amount:number) from Svr to SvrAct;
+      Continue() from Svr to SvrVer;
+      do response(Client, Svr, SvrVer, SvrAct);
+    }or{
+      Cancel() from Client to Svr;
+      Cancel() from Svr to SvrVer;
+      Cancel() from Svr to SvrAct;
+    }
+}
+
+aux global protocol response(role Client, role Svr, role SvrVer, role SvrAct) {
+   choice at SvrAct{
+     Success(message:String) from SvrAct to Svr;
+     Success(message:String) from Svr to Client;
+     Continue() from Svr to SvrVer;
+     do action(Client, Svr, SvrVer, SvrAct);
+} or {
+     Fail(errorCode: number, errorMessage: string) from SvrAct to Svr;
+     choice at Svr{
+     Cancel() from Svr to Client;
+     Cancel() from Svr to SvrVer;
+     Cancel() from Svr to SvrAct;
+  } or {
+     Retry(message:String) from Svr to Client;
+     Continue() from Svr to SvrVer;
+     Retry(message:String) from Svr to SvrAct;
+     do action(Client, Svr, SvrVer, SvrAct);
+  }
+}
+}

@@ -1,0 +1,44 @@
+(*# ErrorHandlingCrashBranch #*)
+
+global protocol SimpleBroadcastAll(role P, role Q, role R) {
+  choice at P {
+    Data from P to Q;
+    choice at P {
+      Data from P to R;
+      choice at R {
+        OK from R to Q;
+      } or {
+        crash from R to Q;
+      }
+    } or {
+      crash from P to R;
+      choice at R {
+        Rec from R to Q;
+        choice at Q {
+          Data from Q to R;
+        } or {
+          KO from Q to R;
+        } or {
+          crash from Q to R;
+        }
+      } or {
+        crash from R to Q;
+      }
+    }
+  } or {
+    crash from P to Q;
+    crash from P to R;
+    choice at R {
+      Rec from R to Q;
+      choice at Q {
+        Data from Q to R;
+      } or {
+        KO from Q to R;
+      } or {
+        crash from Q to R;
+      }
+    } or {
+      crash from R to Q;
+    }
+  }
+}

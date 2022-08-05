@@ -1,0 +1,30 @@
+module OnlineWallet;
+
+global protocol OnlineWallet(role S, role C, role A) {
+  login(id: Int) from C to A;
+  password(pw: Int) from C to A;
+  choice at A {
+    login_ok() from A to C;
+    login_ok() from A to S;
+    account(balance: Int) from S to C;
+    ov(overdraft: Int) from S to C;
+    do Authenticated(S, C, A);
+  } or {
+    login_fail(error: Int) from A to C;
+    login_fail(error: Int) from A to S;
+  }
+}
+
+aux global protocol Authenticated(role S, role C, role A) {
+  choice at C {
+    pay(amount: Int) from C to S;
+    payee(payee: Int) from C to S;
+    pay_auth() from C to A;
+    account(newbalance: Int) from S to C;
+    account(newoverdraft: Int) from S to C;
+    do Authenticated(S, C, A);
+  } or {
+    quit() from C to S;
+    quit() from C to A;
+  }
+}

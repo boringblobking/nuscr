@@ -1,7 +1,3 @@
-
-
-
-
 module icse18.Http;
 
 global protocol Http(role C, role S)

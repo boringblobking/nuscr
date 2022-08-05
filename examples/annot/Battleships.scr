@@ -1,0 +1,32 @@
+module Battleships;
+
+global protocol Battleships(role P1, role Svr, role P2) {
+
+    Init(number) from P1 to Svr;
+    Init(number) from P2 to Svr;
+
+    do Game(P1, Svr, P2);
+
+}
+
+aux global protocol Game(role Atk, role Svr, role Pro) {
+
+    Attack(string) from Atk to Svr;
+    choice at Svr {
+        Hit(string) from Svr to Atk;
+        Hit(string) from Svr to Pro;
+        do Game(Pro, Svr, Atk);
+    } or {
+        Miss(string) from Svr to Atk;
+        Miss(string) from Svr to Pro;
+        do Game(Pro, Svr, Atk);
+    } or {
+        Sunk(string) from Svr to Atk;
+        Sunk(string) from Svr to Pro;
+        do Game(Pro, Svr, Atk);
+    } or {
+        Winner(string) from Svr to Atk;
+        Loser(string) from Svr to Pro;
+    }
+
+}

@@ -1,0 +1,8 @@
+
+global protocol NoPingCrash(role RoleP, role RoleQ) {
+  choice at RoleP {
+    Ping from RoleP to RoleQ;
+  } or {
+    crash from RoleP to RoleQ;
+  }
+}

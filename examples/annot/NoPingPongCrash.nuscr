@@ -1,0 +1,13 @@
+
+global protocol NoPingPongCrash(role P, role Q) {
+  choice at P {
+    Ping from P to Q;
+    choice at Q {
+      Pong from Q to P;
+    } or {
+      crash from Q to P;
+    }
+  } or {
+    crash from P to Q;
+  }
+}

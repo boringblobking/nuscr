@@ -1,0 +1,17 @@
+module Calc;
+
+global protocol Calc(role S , role C) {
+  choice at C {
+    sum1(x1:number) from C to S;
+    sum2(y1:number) from C to S;
+    result(r1:number) from S to C;
+    do Calc(S, C);
+  } or {
+    multiply1(x2:number) from C to S;
+    multiply2(y2:number) from C to S;
+    result(r2:number) from S to C;
+  }or {
+    quit() from C to S;
+    terminate() from S to C;
+  }
+}

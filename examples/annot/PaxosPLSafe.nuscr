@@ -1,0 +1,130 @@
+(*# ErrorHandlingCrashBranch #*)
+
+type <scala> "Option Int" from "scala.option" as maybeint;
+
+// In this representation, the P cannot abandon a proposal partway through.
+// In order to make this simpler, I'm not encoding majorities in the type.
+// Because of the more lax typing, the crash branches act solely as Deny branches.
+
+global protocol Paxos(safe role P, role A1, role A2, role A3, safe role L) {
+  Prepare(n : int) from P to A1; // n is the proposal number
+  Prepare(n : int) from P to A2;
+  Prepare(n : int) from P to A3;
+  do PaxosA1(P, A1, A2, A3, L);
+}
+
+aux protocol PaxosA1(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A1 {
+    Promise(n : int, w : maybeint) from A1 to P; // w is the incumbent accepted value, if any
+    do PaxosA2(P, A1, A2, A3, L);
+  } or {
+    Deny(n : int, m : int) from A1 to P; // m is the incumbent prop. no.
+    do PaxosA2(P, A1, A2, A3, L);
+  } or {
+    crash from A1 to P;
+    do PaxosA2(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosA2(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A2 {
+    Promise(n : int, w : maybeint) from A2 to P;
+    do PaxosA3(P, A1, A2, A3, L);
+  } or {
+    Deny(n : int, m : int) from A2 to P;
+    do PaxosA3(P, A1, A2, A3, L);
+  } or {
+    crash from A2 to P;
+    do PaxosA3(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosA3(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A3 {
+    Promise(n : int, w : maybeint) from A3 to P;
+    do PaxosS2(P, A1, A2, A3, L);
+  } or {
+    Deny(n : int, m : int) from A3 to P;
+    do PaxosS2(P, A1, A2, A3, L);
+  } or {
+    crash from A3 to P;
+    do PaxosS2(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at P {
+    Accept(n : int, v : int) from P to A1;
+    do PaxosS2_1(P, A1, A2, A3, L);
+  } or {
+    NOP(n : int, m : int) from P to A1;
+    do PaxosS2_1(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_1(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at P {
+    Accept(n : int, v : int) from P to A2;
+    do PaxosS2_2(P, A1, A2, A3, L);
+  } or {
+    NOP(n : int, m : int) from P to A2;
+    do PaxosS2_2(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_2(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at P {
+    Accept(n : int, v : int) from P to A3;
+    do PaxosS2_A1(P, A1, A2, A3, L);
+  } or {
+    NOP(n : int, m : int) from P to A3;
+    do PaxosS2_A1(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_A1(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A1 {
+    OK(n : int, v : int) from A1 to P;
+    do PaxosS2_A2(P, A1, A2, A3, L);
+  } or {
+    KO(n : int, m : int) from A1 to P;
+    do PaxosS2_A2(P, A1, A2, A3, L);
+  } or {
+    crash from A1 to P;
+    do PaxosS2_A2(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_A2(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A2 {
+    OK(n : int, v : int) from A2 to P;
+    do PaxosS2_A3(P, A1, A2, A3, L);
+  } or {
+    KO(n : int, m : int) from A2 to P;
+    do PaxosS2_A3(P, A1, A2, A3, L);
+  } or {
+    crash from A2 to P;
+    do PaxosS2_A3(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_A3(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at A3 {
+    OK(n : int, v : int) from A3 to P;
+    do PaxosS2_L(P, A1, A2, A3, L);
+  } or {
+    KO(n : int, m : int) from A3 to P;
+    do PaxosS2_L(P, A1, A2, A3, L);
+  } or {
+    crash from A3 to P;
+    do PaxosS2_L(P, A1, A2, A3, L);
+  }
+}
+
+aux protocol PaxosS2_L(safe role P, role A1, role A2, role A3, safe role L) {
+  choice at P {
+    Accepted(v : int) from P to L;
+  } or {
+    Inconclusive from P to L;
+  }
+}

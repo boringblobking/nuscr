@@ -1,0 +1,12 @@
+module Ticket;
+
+
+global protocol Ticket(role S, role C) {
+  Offer(x: number) from C to S;
+  choice at S {
+    Ok(y: number) from S to C;
+    do Ticket(S, C);
+  } or {
+    Ko() from S to C;
+  }
+}

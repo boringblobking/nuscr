@@ -44,6 +44,10 @@ val get_global_type : scr_module -> protocol:ProtocolName.t -> Gtype.t
 (** [get_global_type module ~protocol] gets the corresponding global type for
     a protocol in a module *)
 
+    val get_global_type1 : scr_module -> protocol:ProtocolName.t -> Gtype.t
+(** [get_global_type module ~protocol] gets the corresponding global type for
+    a protocol in a module *)
+
 val get_global_type_literature_syntax :
   scr_module -> protocol:ProtocolName.t -> LiteratureSyntax.global
 (** [get_global_type module_literature_syntax ~protocol] gets the

@@ -1,0 +1,37 @@
+module SapNego;
+
+global protocol Negotiate(role C, role P)
+{
+  propose(initialPrice: Int) from C to P;
+  do NegoAux(C, P);
+}
+
+aux global protocol NegoAux(role C, role P) {
+  choice at P
+  {
+    accpt(confirmedPrice1: Int) from P to C;
+    confirm() from C to P;
+  }
+  or
+  {
+    counter(counterOfferPrice: Int) from P to C;
+    choice at C
+    {
+      accpt(confirmedPrice2: Int) from C to P;
+      confirm() from P to C;
+    }
+    or
+    {
+      counter(countercounter: Int) from C to P;
+      do NegoAux(C, P);
+    }
+    or
+    {
+      reject() from C to P;
+    }
+  }
+  or
+  {
+    reject() from P to C;
+  }
+}

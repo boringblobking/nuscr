@@ -59,6 +59,7 @@ type t =
       (** [CallG (caller, protocol, participants, t)] - [caller] calls
           [protocol], inviting [participants] to carry out the roles in
           [protocol] (dynamic roles in nested protocols are not included) *)
+  | Empty
 [@@deriving sexp_of]
 
 (** Mapping of protocol name to the roles ('static' participants, dynamic
@@ -86,6 +87,9 @@ val call_label :
 
 val of_protocol : global_protocol -> t
 (** Turn a raw protocol (from the parser) into a global type. *)
+
+val of_crash_safe_protocol : global_protocol -> t
+(** Turn a raw protocol (from the parser) into a global type with crash handling. *)
 
 val nested_t_of_module : scr_module -> nested_t
 (** Turn scribble module (from the parser) into a nested global type *)

@@ -1,0 +1,16 @@
+module Fib;
+
+global protocol Fib(role A, role B)
+{
+    choice at A
+    {
+        Num1(x1: Int) from A to B;
+        Num2(y1: Int) from A to B;
+        Num3(z1: Int) from B to A;
+        do Fib(A, B);
+    }
+    or
+    {
+        Bye() from A to B;
+    }
+}
